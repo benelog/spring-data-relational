@@ -26,6 +26,7 @@ import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 import org.springframework.data.mapping.PersistentPropertyPath;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
+import org.springframework.data.relational.core.query.Query;
 import org.springframework.data.util.Pair;
 import org.springframework.util.Assert;
 
@@ -40,6 +41,7 @@ import org.springframework.util.Assert;
  * @author Myeonghyeon Lee
  * @author Chirag Tailor
  * @author Christoph Strobl
+ * @author Jaeyeon Kim
  */
 public interface DbAction<T> {
 
@@ -252,6 +254,67 @@ public interface DbAction<T> {
 	}
 
 	/**
+	 * Represents a delete statement for aggregate root entities matching a given {@link Query}.
+	 *
+	 * @param <T> type of the entity for which this represents a database interaction.
+	 */
+	final class DeleteRootByQuery<T> implements DbAction<T> {
+
+		private final Class<T> entityType;
+
+		private final Query query;
+
+		DeleteRootByQuery(Class<T> entityType, Query query) {
+			this.entityType = entityType;
+			this.query = query;
+		}
+
+		@Override
+		public Class<T> getEntityType() {
+			return this.entityType;
+		}
+
+		public Query getQuery() {
+			return query;
+		}
+
+		public String toString() {
+			return "DbAction.DeleteRootByQuery(entityType=" + this.entityType + ", query=" + this.query + ")";
+		}
+	}
+
+	/**
+	 * Represents a delete statement for all entities that are reachable via a given path from the aggregate root,
+	 * filtered by a {@link Query}.
+	 *
+	 * @param <T> type of the entity for which this represents a database interaction.
+	 */
+	final class DeleteByQuery<T> implements WithPropertyPath<T> {
+
+		private final Query query;
+
+		private final PersistentPropertyPath<RelationalPersistentProperty> propertyPath;
+
+		DeleteByQuery(Query query, PersistentPropertyPath<RelationalPersistentProperty> propertyPath) {
+			this.query = query;
+			this.propertyPath = propertyPath;
+		}
+
+		@Override
+		public PersistentPropertyPath<RelationalPersistentProperty> propertyPath() {
+			return this.propertyPath;
+		}
+
+		public Query getQuery() {
+			return query;
+		}
+
+		public String toString() {
+			return "DbAction.DeleteByQuery(propertyPath=" + this.propertyPath() + ", query=" + this.query + ")";
+		}
+	}
+
+	/**
 	 * Represents an acquire lock statement for an aggregate root when only the ID is known.
 	 *
 	 * @param <T> type of the entity for which this represents a database interaction.
@@ -298,6 +361,37 @@ public interface DbAction<T> {
 
 		public String toString() {
 			return "DbAction.AcquireLockAllRoot(entityType=" + this.getEntityType() + ")";
+		}
+	}
+
+	/**
+	 * Represents a {@code SELECT ... FOR UPDATE} statement on all aggregate roots of a given type,
+	 * filtered by a {@link Query}.
+	 *
+	 * @param <T> type of the root entity for which this represents a database interaction.
+	 */
+	final class AcquireLockAllRootByQuery<T> implements DbAction<T> {
+
+		private final Class<T> entityType;
+
+		private final Query query;
+
+		AcquireLockAllRootByQuery(Class<T> entityType, Query query) {
+			this.entityType = entityType;
+            this.query = query;
+        }
+
+		@Override
+		public Class<T> getEntityType() {
+			return this.entityType;
+		}
+
+		public Query getQuery() {
+			return query;
+		}
+
+		public String toString() {
+			return "DbAction.AcquireLockAllRootByQuery(entityType=" + this.entityType + ", query=" + this.query + ")";
 		}
 	}
 

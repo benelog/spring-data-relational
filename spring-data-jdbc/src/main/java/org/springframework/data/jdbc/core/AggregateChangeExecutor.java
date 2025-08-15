@@ -31,6 +31,7 @@ import org.springframework.data.relational.core.conversion.MutableAggregateChang
  * @author Chirag Tailor
  * @author Mikhail Polivakha
  * @author Christoph Strobl
+ * @author Jaeyeon Kim
  * @since 2.0
  */
 class AggregateChangeExecutor {
@@ -104,10 +105,16 @@ class AggregateChangeExecutor {
 			executionContext.executeBatchDeleteRoot(batchDeleteRoot);
 		} else if (action instanceof DbAction.DeleteAllRoot<?> deleteAllRoot) {
 			executionContext.executeDeleteAllRoot(deleteAllRoot);
+		} else if (action instanceof DbAction.DeleteRootByQuery<?> deleteRootByQuery) {
+			executionContext.excuteDeleteRootByQuery(deleteRootByQuery);
+		} else if (action instanceof DbAction.DeleteByQuery<?> deleteByQuery) {
+			executionContext.excuteDeleteByQuery(deleteByQuery);
 		} else if (action instanceof DbAction.AcquireLockRoot<?> acquireLockRoot) {
 			executionContext.executeAcquireLock(acquireLockRoot);
 		} else if (action instanceof DbAction.AcquireLockAllRoot<?> acquireLockAllRoot) {
 			executionContext.executeAcquireLockAllRoot(acquireLockAllRoot);
+		} else if (action instanceof DbAction.AcquireLockAllRootByQuery<?> acquireLockAllRootByQuery) {
+			executionContext.executeAcquireLockRootByQuery(acquireLockAllRootByQuery);
 		} else {
 			throw new RuntimeException("unexpected action");
 		}
