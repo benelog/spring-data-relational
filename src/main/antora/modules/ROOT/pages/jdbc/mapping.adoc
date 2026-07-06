@@ -62,15 +62,19 @@ If one is present it gets mapped as a normal attribute without any special meani
 * `Set<some entity>` is considered a one-to-many relationship.
 The table of the referenced entity is expected to have an additional column with a name based on the referencing entity see <<jdbc.entity-persistence.types.backrefs>>.
 
+* `Collection<some entity>` is considered an unordered one-to-many relationship and is mapped just like a `Set`, requiring the same single additional column.
+Unlike a `Set`, a `Collection` does not remove duplicates, so equal elements are stored and loaded as separate rows.
+As the order of the elements is not persisted, it is not guaranteed to be preserved across a store and load cycle.
+
 * `Map<simple type, some entity>` is considered a qualified one-to-many relationship.
 The table of the referenced entity is expected to have two additional columns: One named based on the referencing entity for the foreign key (see <<jdbc.entity-persistence.types.backrefs>>) and one with the same name and an additional `_key` suffix for the map key.
 
 * `List<some entity>` is mapped as a  `Map<Integer, some entity>`.
 The same additional columns are expected and the names used can be customized in the same way.
 +
-For `List`, `Set`, and `Map` naming of the back reference can be controlled by implementing `NamingStrategy.getReverseColumnName(RelationalPersistentEntity<?> owner)` and `NamingStrategy.getKeyColumn(RelationalPersistentProperty property)`, respectively.
+For `List`, `Set`, `Collection`, and `Map` naming of the back reference can be controlled by implementing `NamingStrategy.getReverseColumnName(RelationalPersistentEntity<?> owner)` and `NamingStrategy.getKeyColumn(RelationalPersistentProperty property)`, respectively.
 Alternatively you may annotate the attribute with `@MappedCollection(idColumn="your_column_name", keyColumn="your_key_column_name")`.
-Specifying a key column for a `Set` has no effect.
+Specifying a key column for a `Set` or `Collection` has no effect.
 
 * Types for which you registered suitable xref:#mapping.explicit.converters[custom converters].
 

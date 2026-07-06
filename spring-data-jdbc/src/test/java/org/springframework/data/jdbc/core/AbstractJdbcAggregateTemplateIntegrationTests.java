@@ -87,6 +87,7 @@ import org.springframework.test.context.ContextConfiguration;
  * @author Chirag Tailor
  * @author Vincent Galloy
  * @author Sergey Korotaev
+ * @author Sanghun Lee
  */
 @IntegrationTest
 abstract class AbstractJdbcAggregateTemplateIntegrationTests {
@@ -1501,6 +1502,28 @@ abstract class AbstractJdbcAggregateTemplateIntegrationTests {
 		assertThat(reloaded.mapElements.get("delta")).isEqualTo(new MapElement("four"));
 	}
 
+	@Test // GH-848
+	void saveAndLoadCollectionWithDuplicateElements() {
+
+		CollectionAggregate aggregate = new CollectionAggregate();
+		aggregate.name = "collection aggregate";
+		aggregate.content.add(new CollectionElement("duplicate"));
+		aggregate.content.add(new CollectionElement("duplicate"));
+		aggregate.content.add(new CollectionElement("unique"));
+
+		CollectionAggregate saved = template.save(aggregate);
+
+		assertThat(saved.id).isNotNull();
+		assertThat(saved.content).allMatch(element -> element.id != null);
+
+		CollectionAggregate reloaded = template.findById(saved.id, CollectionAggregate.class);
+
+		assertThat(reloaded.content) //
+				.isNotNull() //
+				.extracting(element -> element.content) //
+				.containsExactlyInAnyOrder("duplicate", "duplicate", "unique");
+	}
+
 	@Test // GH-1448
 	void multipleCollectionsWithEmptyList() {
 
@@ -2470,6 +2493,23 @@ abstract class AbstractJdbcAggregateTemplateIntegrationTests {
 	}
 
 	record MapElement(String name) {
+	}
+
+	static class CollectionAggregate {
+
+		@Id Long id;
+		String name;
+		Collection<CollectionElement> content = new ArrayList<>();
+	}
+
+	static class CollectionElement {
+
+		@Id Long id;
+		String content;
+
+		CollectionElement(String content) {
+			this.content = content;
+		}
 	}
 
 	record Author(@Id Long id, Set<Book> books) {
