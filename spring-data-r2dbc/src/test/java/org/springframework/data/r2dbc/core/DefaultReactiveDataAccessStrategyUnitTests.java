@@ -40,7 +40,7 @@ class DefaultReactiveDataAccessStrategyUnitTests {
 				.containsExactlyInAnyOrder(sqlIdentifiers.toArray(new SqlIdentifier[0]));
 	}
 
-	@Test // GH-502
+	@Test // GH-2299
 	void shouldWriteDurationAsH2Interval() {
 
 		OutboundRow outboundRow = dataAccessStrategy.getOutboundRow(new WithDuration(Duration.ofMillis(-500)));

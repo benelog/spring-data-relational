@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package org.springframework.data.r2dbc.dialect;
+package org.springframework.data.relational.core.dialect;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -32,19 +32,20 @@ import org.springframework.data.mapping.model.SimpleTypeHolder;
 /**
  * Unit tests for {@link H2Dialect}.
  *
- * @author YeongJae Min
+ * @author Jens Schauder
  */
+@SuppressWarnings("deprecation")
 class H2DialectUnitTests {
 
-	@Test // GH-502
+	@Test // GH-2299
 	void shouldConsiderIntervalSimpleType() {
 
-		SimpleTypeHolder holder = H2Dialect.INSTANCE.getSimpleTypeHolder();
+		SimpleTypeHolder holder = new SimpleTypeHolder(H2Dialect.INSTANCE.simpleTypes(), true);
 
 		assertThat(holder.isSimpleType(Interval.class)).isTrue();
 	}
 
-	@Test // GH-502
+	@Test // GH-2299
 	void shouldConvertDayTimeIntervalToDuration() {
 
 		Interval interval = Interval.ofDaysHoursMinutesNanos(1, 2, 3, 4_500_000_000L);
@@ -54,7 +55,7 @@ class H2DialectUnitTests {
 				.plusNanos(500_000_000));
 	}
 
-	@Test // GH-502
+	@Test // GH-2299
 	void shouldRejectYearMonthIntervalToDurationConversion() {
 
 		assertThatThrownBy(() -> conversionService().convert(Interval.ofYearsMonths(1, 2), Duration.class))
@@ -62,7 +63,7 @@ class H2DialectUnitTests {
 				.hasRootCauseInstanceOf(IllegalArgumentException.class);
 	}
 
-	@Test // GH-502
+	@Test // GH-2299
 	void shouldConvertNegativeDurationToInterval() {
 
 		Duration duration = Duration.ofMillis(-500);

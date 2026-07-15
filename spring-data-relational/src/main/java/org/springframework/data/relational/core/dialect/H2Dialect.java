@@ -15,6 +15,19 @@
  */
 package org.springframework.data.relational.core.dialect;
 
+import org.h2.api.Interval;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import java.util.function.Consumer;
+
+import org.springframework.core.convert.converter.Converter;
+import org.springframework.data.convert.ReadingConverter;
+import org.springframework.data.convert.WritingConverter;
 import org.springframework.data.relational.core.sql.IdentifierProcessing;
 import org.springframework.data.relational.core.sql.IdentifierProcessing.LetterCasing;
 import org.springframework.data.relational.core.sql.IdentifierProcessing.Quoting;
@@ -32,6 +45,25 @@ import org.springframework.util.ClassUtils;
  * @since 2.0
  */
 public class H2Dialect extends AbstractDialect {
+
+	public static final String H2_INTERVAL_CLASS_NAME = "org.h2.api.Interval";
+
+	private static final boolean H2_INTERVAL_PRESENT = ClassUtils.isPresent(H2_INTERVAL_CLASS_NAME,
+			H2Dialect.class.getClassLoader());
+
+	private static final Set<Class<?>> SIMPLE_TYPES;
+
+	private static final Collection<Object> CONVERTERS = List.copyOf(createConverters());
+
+	static {
+
+		Set<Class<?>> simpleTypes = new HashSet<>();
+
+		// conditional H2 Interval support.
+		ifClassPresent(H2_INTERVAL_CLASS_NAME, simpleTypes::add);
+
+		SIMPLE_TYPES = simpleTypes;
+	}
 
 	/**
 	 * Singleton instance.
@@ -114,6 +146,85 @@ public class H2Dialect extends AbstractDialect {
 	@Override
 	public IdGeneration getIdGeneration() {
 		return ID_GENERATION;
+	}
+
+	@Override
+	public Collection<Object> getConverters() {
+		return CONVERTERS;
+	}
+
+	@Override
+	public Set<Class<?>> simpleTypes() {
+		return SIMPLE_TYPES;
+	}
+
+	private static List<Object> createConverters() {
+
+		List<Object> converters = new ArrayList<>();
+
+		if (H2_INTERVAL_PRESENT) {
+			converters.add(H2IntervalToDurationConverter.INSTANCE);
+			converters.add(DurationToH2IntervalConverter.INSTANCE);
+		}
+
+		return converters;
+	}
+
+	/**
+	 * If the class is present on the class path, invoke the specified consumer {@code action} with the class object,
+	 * otherwise do nothing.
+	 *
+	 * @param className the fully-qualified class name to check for.
+	 * @param action block to be executed if a value is present.
+	 */
+	private static void ifClassPresent(String className, Consumer<Class<?>> action) {
+
+		if (ClassUtils.isPresent(className, H2Dialect.class.getClassLoader())) {
+			action.accept(ClassUtils.resolveClassName(className, H2Dialect.class.getClassLoader()));
+		}
+	}
+
+	@ReadingConverter
+	private enum H2IntervalToDurationConverter implements Converter<Interval, Duration> {
+
+		INSTANCE;
+
+		@Override
+		public Duration convert(Interval source) {
+
+			if (source.getQualifier().isYearMonth()) {
+				throw new IllegalArgumentException("Year-month intervals cannot be represented as Duration");
+			}
+
+			return Duration.ZERO //
+					.plusDays(source.getDays()) //
+					.plusHours(source.getHours()) //
+					.plusMinutes(source.getMinutes()) //
+					.plusSeconds(source.getSeconds()) //
+					.plusNanos(source.getNanosOfSecond());
+		}
+	}
+
+	@WritingConverter
+	private enum DurationToH2IntervalConverter implements Converter<Duration, Interval> {
+
+		INSTANCE;
+
+		private static final int NANOS_PER_SECOND = 1_000_000_000;
+
+		@Override
+		public Interval convert(Duration source) {
+
+			long seconds = source.getSeconds();
+			int nanos = source.getNano();
+
+			if (seconds < 0 && nanos > 0) {
+				seconds++;
+				nanos -= NANOS_PER_SECOND;
+			}
+
+			return Interval.ofSeconds(seconds, nanos);
+		}
 	}
 
 }

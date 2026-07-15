@@ -92,7 +92,7 @@ class H2IntegrationTests {
 				.verifyComplete();
 	}
 
-	@Test // GH-502
+	@Test // GH-2299
 	void shouldReadAndWriteDurationAsInterval() {
 
 		jdbc.execute("DROP TABLE IF EXISTS \"duration_holder\"");
