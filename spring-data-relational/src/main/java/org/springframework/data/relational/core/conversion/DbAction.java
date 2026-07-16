@@ -257,6 +257,7 @@ public interface DbAction<T> {
 	 * Represents a delete statement for aggregate root entities matching a given {@link Query}.
 	 *
 	 * @param <T> type of the entity for which this represents a database interaction.
+	 * @since 4.2
 	 */
 	final class DeleteRootByQuery<T> implements DbAction<T> {
 
@@ -288,6 +289,7 @@ public interface DbAction<T> {
 	 * filtered by a {@link Query}.
 	 *
 	 * @param <T> type of the entity for which this represents a database interaction.
+	 * @since 4.2
 	 */
 	final class DeleteByQuery<T> implements WithPropertyPath<T> {
 
@@ -365,10 +367,11 @@ public interface DbAction<T> {
 	}
 
 	/**
-	 * Represents a {@code SELECT ... FOR UPDATE} statement on all aggregate roots of a given type,
-	 * filtered by a {@link Query}.
+	 * Represents a {@code SELECT ... FOR UPDATE} statement on all aggregate roots of a given type, filtered by a
+	 * {@link Query}.
 	 *
 	 * @param <T> type of the root entity for which this represents a database interaction.
+	 * @since 4.2
 	 */
 	final class AcquireLockAllRootByQuery<T> implements DbAction<T> {
 
@@ -378,8 +381,8 @@ public interface DbAction<T> {
 
 		AcquireLockAllRootByQuery(Class<T> entityType, Query query) {
 			this.entityType = entityType;
-            this.query = query;
-        }
+			this.query = query;
+		}
 
 		@Override
 		public Class<T> getEntityType() {

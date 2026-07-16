@@ -140,12 +140,10 @@ public class DefaultDataAccessStrategy implements DataAccessStrategy {
 
 		Assert.notEmpty(insertSubjects, "Batch insert must contain at least one InsertSubject");
 
-		SqlIdentifierParameterSource[] sqlParameterSources = insertSubjects.stream()
-				.map(insertSubject -> {
-					return parametersFactory.forInsert(insertSubject.getInstance(), domainType, insertSubject.getIdentifier(),
-							idValueSource);
-				})
-				.toArray(SqlIdentifierParameterSource[]::new);
+		SqlIdentifierParameterSource[] sqlParameterSources = insertSubjects.stream().map(insertSubject -> {
+			return parametersFactory.forInsert(insertSubject.getInstance(), domainType, insertSubject.getIdentifier(),
+					idValueSource);
+		}).toArray(SqlIdentifierParameterSource[]::new);
 
 		String insertSql = sql(domainType).getInsert(sqlParameterSources[0].getIdentifiers());
 
@@ -185,8 +183,7 @@ public class DefaultDataAccessStrategy implements DataAccessStrategy {
 	public <T> int upsert(T objectToSave, Class<? super T> domainType) {
 
 		SqlIdentifierParameterSource parameterSource = parametersFactory.forInsert(objectToSave, domainType,
-				Identifier.empty(),
-				IdValueSource.PROVIDED);
+				Identifier.empty(), IdValueSource.PROVIDED);
 		String statement = sql(domainType).getUpsert(parameterSource.getIdentifiers());
 
 		return operations.update(statement, parameterSource);
@@ -263,12 +260,12 @@ public class DefaultDataAccessStrategy implements DataAccessStrategy {
 	}
 
 	@Override
-	public void deleteByQuery(Query query, Class<?> domainType) {
+	public long deleteByQuery(Query query, Class<?> domainType) {
 
 		MapSqlParameterSource parameterSource = new MapSqlParameterSource();
 		String deleteSql = sql(domainType).createDeleteByQuery(query, parameterSource);
 
-		operations.update(deleteSql, parameterSource);
+		return operations.update(deleteSql, parameterSource);
 	}
 
 	@Override
@@ -306,7 +303,7 @@ public class DefaultDataAccessStrategy implements DataAccessStrategy {
 	public <T> void acquireLockByQuery(Query query, LockMode lockMode, Class<T> domainType) {
 
 		MapSqlParameterSource parameterSource = new MapSqlParameterSource();
-		String acquireLockByQuerySql = sql(domainType).getAcquireLockByQuery(query, parameterSource, lockMode);
+		String acquireLockByQuerySql = sql(domainType).createAcquireLockByQuery(query, parameterSource, lockMode);
 
 		operations.query(acquireLockByQuerySql, parameterSource, ResultSet::next);
 	}

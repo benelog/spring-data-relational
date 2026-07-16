@@ -15,23 +15,12 @@
  */
 package org.springframework.data.jdbc.core;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.util.*;
 import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
-
 import org.springframework.core.CollectionFactory;
 import org.springframework.data.jdbc.core.convert.DataAccessStrategy;
 import org.springframework.data.jdbc.core.convert.Identifier;
@@ -106,8 +95,7 @@ class JdbcAggregateChangeExecutionContext {
 	<T> void executeInsert(DbAction.Insert<T> insert) {
 
 		Identifier parentKeys = getParentKeys(insert, converter);
-		Object id = accessStrategy.insert(insert.entity(), insert.getEntityType(), parentKeys,
-				insert.idValueSource());
+		Object id = accessStrategy.insert(insert.entity(), insert.getEntityType(), parentKeys, insert.idValueSource());
 		add(new DbActionExecutionResult(insert, id));
 	}
 
@@ -182,12 +170,12 @@ class JdbcAggregateChangeExecutionContext {
 		accessStrategy.deleteAll(delete.propertyPath());
 	}
 
-	<T> void excuteDeleteRootByQuery(DbAction.DeleteRootByQuery<T> deleteRootByQuery) {
+	<T> long executeDeleteRootByQuery(DbAction.DeleteRootByQuery<T> deleteRootByQuery) {
 
-		accessStrategy.deleteByQuery(deleteRootByQuery.getQuery(), deleteRootByQuery.getEntityType());
+		return accessStrategy.deleteByQuery(deleteRootByQuery.getQuery(), deleteRootByQuery.getEntityType());
 	}
 
-	<T> void excuteDeleteByQuery(DbAction.DeleteByQuery<T> deleteByQuery) {
+	<T> void executeDeleteByQuery(DbAction.DeleteByQuery<T> deleteByQuery) {
 
 		accessStrategy.deleteByQuery(deleteByQuery.getQuery(), deleteByQuery.propertyPath());
 	}
@@ -200,7 +188,7 @@ class JdbcAggregateChangeExecutionContext {
 		accessStrategy.acquireLockAll(LockMode.PESSIMISTIC_WRITE, acquireLock.getEntityType());
 	}
 
-	<T> void executeAcquireLockRootByQuery(DbAction.AcquireLockAllRootByQuery<T> acquireLock) {
+	<T> void executeAcquireLockAllRootByQuery(DbAction.AcquireLockAllRootByQuery<T> acquireLock) {
 		accessStrategy.acquireLockByQuery(acquireLock.getQuery(), LockMode.PESSIMISTIC_WRITE, acquireLock.getEntityType());
 	}
 
@@ -329,10 +317,10 @@ class JdbcAggregateChangeExecutionContext {
 		}
 
 		if (roots.isEmpty()) {
-			throw new IllegalStateException(
-					String.format("Cannot retrieve the resulting instance(s) unless a %s, %s, or %s action was successfully executed",
-							DbAction.InsertRoot.class.getName(), DbAction.UpdateRoot.class.getName(),
-							DbAction.UpsertRoot.class.getName()));
+			throw new IllegalStateException(String.format(
+					"Cannot retrieve the resulting instance(s) unless a %s, %s, or %s action was successfully executed",
+					DbAction.InsertRoot.class.getName(), DbAction.UpdateRoot.class.getName(),
+					DbAction.UpsertRoot.class.getName()));
 		}
 
 		Collections.reverse(roots);

@@ -18,6 +18,7 @@ package org.springframework.data.jdbc.core;
 import static org.assertj.core.api.Assertions.*;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -68,7 +69,7 @@ class CompositeIdAggregateTemplateHsqlIntegrationTests {
 		SimpleEntity entity = template.upsert(new SimpleEntity(new WrappedPk(23L), "alpha"));
 
 		assertThat(entity.wrappedPk).isNotNull() //
-			.extracting(WrappedPk::id).isNotNull();
+				.extracting(WrappedPk::id).isNotNull();
 
 		SimpleEntity reloaded = template.findById(entity.wrappedPk, SimpleEntity.class);
 
@@ -104,7 +105,7 @@ class CompositeIdAggregateTemplateHsqlIntegrationTests {
 	void upsertAndLoadSimpleEntityWithEmbeddedPk() {
 
 		SimpleEntityWithEmbeddedPk entity = template
-			.upsert(new SimpleEntityWithEmbeddedPk(new EmbeddedPk(23L, "x"), "alpha"));
+				.upsert(new SimpleEntityWithEmbeddedPk(new EmbeddedPk(23L, "x"), "alpha"));
 
 		SimpleEntityWithEmbeddedPk reloaded = template.findById(entity.embeddedPk, SimpleEntityWithEmbeddedPk.class);
 
@@ -156,22 +157,27 @@ class CompositeIdAggregateTemplateHsqlIntegrationTests {
 	}
 
 	@Test // GH-1978
-	void deleteAllByQueryWithEmbeddedPk() {
+	void deleteAllByQueryWithEmbeddedPkDeletesReferencedEntities() {
 
-		List<SimpleEntityWithEmbeddedPk> entities = (List<SimpleEntityWithEmbeddedPk>) template
-				.insertAll(List.of(new SimpleEntityWithEmbeddedPk(new EmbeddedPk(1L, "a"), "alpha"),
-						new SimpleEntityWithEmbeddedPk(new EmbeddedPk(2L, "b"), "beta"),
-						new SimpleEntityWithEmbeddedPk(new EmbeddedPk(3L, "b"), "gamma")));
+		List<WithListAndCompositeId> entities = (List<WithListAndCompositeId>) template.insertAll(List.of( //
+				new WithListAndCompositeId(new EmbeddedPk(1L, "a"), "alpha", List.of(new Child("Alf"), new Child("Bob"))), //
+				new WithListAndCompositeId(new EmbeddedPk(2L, "b"), "beta", List.of(new Child("Carol"))), //
+				new WithListAndCompositeId(new EmbeddedPk(3L, "c"), "gamma", List.of(new Child("Dave"), new Child("Eve")))));
 
 		Query query = Query.query(Criteria.where("name").is("beta"));
-		template.deleteAllByQuery(query, SimpleEntityWithEmbeddedPk.class);
+		long deleted = template.deleteAllByQuery(query, WithListAndCompositeId.class);
 
-		assertThat(
-				template.findAll(SimpleEntityWithEmbeddedPk.class))
-				.containsExactlyInAnyOrder(
+		assertThat(deleted).isEqualTo(1);
+
+		assertThat(template.findAll(WithListAndCompositeId.class)) //
+				.containsExactlyInAnyOrder( //
 						entities.get(0), // alpha
-						entities.get(2)  // gamma
+						entities.get(2) // gamma
 				);
+
+		Long remainingChildren = namedParameterJdbcTemplate.queryForObject("SELECT COUNT(*) FROM CHILD", Map.of(),
+				Long.class);
+		assertThat(remainingChildren).isEqualTo(4L); // Alf, Bob, Dave, Eve — Carol was removed along with beta
 	}
 
 	@Test // GH-574
@@ -207,9 +213,9 @@ class CompositeIdAggregateTemplateHsqlIntegrationTests {
 	void upsertUpdatesExistingSingleSimpleEntityWithEmbeddedPk() {
 
 		List<SimpleEntityWithEmbeddedPk> entities = (List<SimpleEntityWithEmbeddedPk>) template
-			.insertAll(List.of(new SimpleEntityWithEmbeddedPk(new EmbeddedPk(23L, "x"), "alpha"),
-				new SimpleEntityWithEmbeddedPk(new EmbeddedPk(23L, "y"), "beta"),
-				new SimpleEntityWithEmbeddedPk(new EmbeddedPk(24L, "y"), "gamma")));
+				.insertAll(List.of(new SimpleEntityWithEmbeddedPk(new EmbeddedPk(23L, "x"), "alpha"),
+						new SimpleEntityWithEmbeddedPk(new EmbeddedPk(23L, "y"), "beta"),
+						new SimpleEntityWithEmbeddedPk(new EmbeddedPk(24L, "y"), "gamma")));
 
 		SimpleEntityWithEmbeddedPk updated = new SimpleEntityWithEmbeddedPk(new EmbeddedPk(23L, "x"), "ALPHA");
 		template.upsert(updated);

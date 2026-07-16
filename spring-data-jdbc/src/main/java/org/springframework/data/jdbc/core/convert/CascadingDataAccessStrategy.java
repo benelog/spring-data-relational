@@ -15,7 +15,7 @@
  */
 package org.springframework.data.jdbc.core.convert;
 
-import static java.lang.Boolean.TRUE;
+import static java.lang.Boolean.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -101,8 +101,7 @@ public class CascadingDataAccessStrategy implements DataAccessStrategy {
 
 	@Override
 	public <S> boolean updateWithVersion(S objectToSave, Class<S> domainType, Number previousVersion) {
-		return cascadePropagatingOptimisticLocking(
-				das -> das.updateWithVersion(objectToSave, domainType, previousVersion));
+		return cascadePropagatingOptimisticLocking(das -> das.updateWithVersion(objectToSave, domainType, previousVersion));
 	}
 
 	@Override
@@ -144,8 +143,8 @@ public class CascadingDataAccessStrategy implements DataAccessStrategy {
 	}
 
 	@Override
-	public void deleteByQuery(Query query, Class<?> domainType) {
-		collectVoid(das -> das.deleteByQuery(query, domainType));
+	public long deleteByQuery(Query query, Class<?> domainType) {
+		return collect(das -> das.deleteByQuery(query, domainType));
 	}
 
 	@Override

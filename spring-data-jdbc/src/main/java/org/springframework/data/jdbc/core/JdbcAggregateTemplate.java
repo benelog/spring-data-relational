@@ -31,7 +31,6 @@ import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import org.jspecify.annotations.Nullable;
-
 import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.ApplicationContextAware;
@@ -45,16 +44,7 @@ import org.springframework.data.jdbc.core.convert.JdbcConverter;
 import org.springframework.data.mapping.IdentifierAccessor;
 import org.springframework.data.mapping.callback.EntityCallbacks;
 import org.springframework.data.relational.core.EntityLifecycleEventDelegate;
-import org.springframework.data.relational.core.conversion.AggregateChange;
-import org.springframework.data.relational.core.conversion.BatchingAggregateChange;
-import org.springframework.data.relational.core.conversion.DeleteAggregateChange;
-import org.springframework.data.relational.core.conversion.MutableAggregateChange;
-import org.springframework.data.relational.core.conversion.RelationalEntityDeleteWriter;
-import org.springframework.data.relational.core.conversion.RelationalEntityInsertWriter;
-import org.springframework.data.relational.core.conversion.RelationalEntityUpdateWriter;
-import org.springframework.data.relational.core.conversion.RelationalEntityUpsertWriter;
-import org.springframework.data.relational.core.conversion.RelationalEntityVersionUtils;
-import org.springframework.data.relational.core.conversion.RootAggregateChange;
+import org.springframework.data.relational.core.conversion.*;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.mapping.RelationalPersistentEntity;
 import org.springframework.data.relational.core.mapping.RelationalPersistentProperty;
@@ -517,14 +507,14 @@ public class JdbcAggregateTemplate implements JdbcAggregateOperations, Applicati
 	}
 
 	@Override
-	public <T> void deleteAllByQuery(Query query, Class<T> domainType) {
+	public <T> long deleteAllByQuery(Query query, Class<T> domainType) {
 
 		Assert.notNull(query, "Query must not be null");
 		Assert.notNull(domainType, "Domain type must not be null");
 
 		MutableAggregateChange<?> change = createDeletingChange(query, domainType);
 
-		executor.executeDelete(change);
+		return executor.executeDelete(change);
 	}
 
 	@Override

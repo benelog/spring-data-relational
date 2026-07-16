@@ -26,9 +26,7 @@ import java.util.Set;
 
 import org.jspecify.annotations.Nullable;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
-
 import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.ReadOnlyProperty;
 import org.springframework.data.annotation.Version;
@@ -169,13 +167,14 @@ class SqlGeneratorUnitTests {
 	}
 
 	@Test // GH-1978
-	void getAcquireLockByQuery(){
+	void createAcquireLockByQuery() {
 
 		Query query = Query.query(Criteria.where("id").is(23L));
 
-		String sql = sqlGenerator.getAcquireLockByQuery(query, new MapSqlParameterSource(), LockMode.PESSIMISTIC_WRITE);
+		String sql = sqlGenerator.createAcquireLockByQuery(query, new MapSqlParameterSource(), LockMode.PESSIMISTIC_WRITE);
 
-		assertThat(sql).isEqualTo("SELECT dummy_entity.id1 AS id1 FROM dummy_entity WHERE dummy_entity.id1 = :id1 FOR UPDATE");
+		assertThat(sql)
+				.isEqualTo("SELECT dummy_entity.id1 AS id1 FROM dummy_entity WHERE dummy_entity.id1 = :id1 FOR UPDATE");
 	}
 
 	@Test // DATAJDBC-112
@@ -270,12 +269,10 @@ class SqlGeneratorUnitTests {
 		Query query = Query.query(Criteria.where("id").is(23L));
 		MapSqlParameterSource parameterSource = new MapSqlParameterSource();
 
-		String sql = sqlGenerator.createDeleteInSubselectByPath(query, parameterSource,
-				getPath("ref", DummyEntity.class));
+		String sql = sqlGenerator.createDeleteInSubselectByPath(query, parameterSource, getPath("ref", DummyEntity.class));
 
-		assertThat(sql).isEqualTo(
-				"DELETE FROM referenced_entity WHERE referenced_entity.dummy_entity IN " +
-						"(SELECT dummy_entity.id1 AS id1 FROM dummy_entity WHERE dummy_entity.id1 = :id1)");
+		assertThat(sql).isEqualTo("DELETE FROM referenced_entity WHERE referenced_entity.dummy_entity IN "
+				+ "(SELECT dummy_entity.id1 AS id1 FROM dummy_entity WHERE dummy_entity.id1 = :id1)");
 	}
 
 	@Test // GH-1978
@@ -288,10 +285,9 @@ class SqlGeneratorUnitTests {
 				getPath("ref.further", DummyEntity.class));
 
 		assertThat(sql).isEqualTo(
-				"DELETE FROM second_level_referenced_entity " +
-						"WHERE second_level_referenced_entity.referenced_entity IN " +
-						"(SELECT referenced_entity.x_l1id FROM referenced_entity WHERE referenced_entity.dummy_entity IN " +
-						"(SELECT dummy_entity.id1 AS id1 FROM dummy_entity WHERE dummy_entity.id1 = :id1))");
+				"DELETE FROM second_level_referenced_entity " + "WHERE second_level_referenced_entity.referenced_entity IN "
+						+ "(SELECT referenced_entity.x_l1id FROM referenced_entity WHERE referenced_entity.dummy_entity IN "
+						+ "(SELECT dummy_entity.id1 AS id1 FROM dummy_entity WHERE dummy_entity.id1 = :id1))");
 	}
 
 	@Test // DATAJDBC-101
@@ -658,9 +654,9 @@ class SqlGeneratorUnitTests {
 		SqlGenerator sqlGenerator = createSqlGenerator(DummyEntity.class);
 		String upsert = sqlGenerator.getUpsert(emptySet());
 		assertThat(upsert) //
-			.startsWith("MERGE INTO dummy_entity") //
-			.contains("WHEN MATCHED THEN UPDATE") //
-			.contains("WHEN NOT MATCHED THEN INSERT");
+				.startsWith("MERGE INTO dummy_entity") //
+				.contains("WHEN MATCHED THEN UPDATE") //
+				.contains("WHEN NOT MATCHED THEN INSERT");
 	}
 
 	@Test // GH-493

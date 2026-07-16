@@ -15,23 +15,13 @@
  */
 package org.springframework.data.jdbc.core.convert;
 
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.HashSet;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
+import java.util.*;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.jspecify.annotations.Nullable;
-
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jdbc.repository.support.SimpleJdbcRepository;
@@ -109,7 +99,6 @@ public class SqlGenerator {
 	private final Lazy<String> deleteByIdInSql = Lazy.of(this::createDeleteByIdInSql);
 	private final Lazy<String> deleteByIdAndVersionSql = Lazy.of(this::createDeleteByIdAndVersionSql);
 	private final Lazy<String> deleteByListSql = Lazy.of(this::createDeleteByListSql);
-
 
 	/**
 	 * Create a new {@link SqlGenerator} given {@link RelationalMappingContext} and {@link RelationalPersistentEntity}.
@@ -418,18 +407,6 @@ public class SqlGenerator {
 	}
 
 	/**
-	 * Create a {@code SELECT id FROM … WHERE … (LOCK CLAUSE)} statement based on the given query.
-	 *
-	 * @param query the query to base the select on. Must not be null.
-	 * @param parameterSource the source for holding the bindings.
-	 * @param lockMode Lock clause mode.
-	 * @return the SQL statement as a {@link String}. Guaranteed to be not {@literal null}.
-	 */
-	String getAcquireLockByQuery(Query query, MapSqlParameterSource parameterSource, LockMode lockMode) {
-		return this.createAcquireLockByQuery(query, parameterSource, lockMode);
-	}
-
-	/**
 	 * Create a {@code INSERT INTO … (…) VALUES(…)} statement.
 	 *
 	 * @return the statement as a {@link String}. Guaranteed to be not {@literal null}.
@@ -592,16 +569,14 @@ public class SqlGenerator {
 	 * @param parameterSource the parameter bindings for the query; must not be {@literal null}.
 	 * @return the SQL DELETE statement as a {@link String}; guaranteed to be not {@literal null}.
 	 */
-	public String createDeleteByQuery(Query query, MapSqlParameterSource parameterSource) {
+	String createDeleteByQuery(Query query, MapSqlParameterSource parameterSource) {
 		Assert.notNull(parameterSource, "parameterSource must not be null");
 
 		Table table = this.getTable();
 
-		DeleteBuilder.DeleteWhere builder = Delete.builder()
-				.from(table);
+		DeleteBuilder.DeleteWhere builder = Delete.builder().from(table);
 
-		query.getCriteria()
-				.filter(criteria -> !criteria.isEmpty())
+		query.getCriteria().filter(criteria -> !criteria.isEmpty())
 				.map(criteria -> queryMapper.getMappedObject(parameterSource, criteria, table, entity))
 				.ifPresent(builder::where);
 
@@ -609,27 +584,27 @@ public class SqlGenerator {
 	}
 
 	/**
-	 * Creates a {@code DELETE} SQL query that targets a specific table defined by the given {@link PersistentPropertyPath},
-	 * and applies filtering using a subselect based on the provided {@link Query}.
+	 * Creates a {@code DELETE} SQL query that targets a specific table defined by the given
+	 * {@link PersistentPropertyPath}, and applies filtering using a subselect based on the provided {@link Query}.
 	 *
 	 * @param query the query object containing the filtering criteria; must not be {@literal null}.
 	 * @param parameterSource the source for parameter bindings used in the query; must not be {@literal null}.
 	 * @param propertyPath must not be {@literal null}.
 	 * @return the DELETE SQL statement as a {@link String}. Guaranteed to be not {@literal null}.
 	 */
-	public String createDeleteInSubselectByPath(Query query, MapSqlParameterSource parameterSource,
-												PersistentPropertyPath<RelationalPersistentProperty> propertyPath) {
+	String createDeleteInSubselectByPath(Query query, MapSqlParameterSource parameterSource,
+			PersistentPropertyPath<RelationalPersistentProperty> propertyPath) {
 
 		Assert.notNull(parameterSource, "parameterSource must not be null");
 
 		AggregatePath path = mappingContext.getAggregatePath(propertyPath);
 
-        return createDeleteByPathAndCriteria(path, columnMap -> {
-            Select subSelect = createRootIdSubSelect(query, parameterSource);
+		return createDeleteByPathAndCriteria(path, columnMap -> {
+			Select subSelect = createRootIdSubSelect(query, parameterSource);
 			Collection<Column> columns = columnMap.values();
-            Expression expression = columns.size() == 1 ? columns.iterator().next() : TupleExpression.create(columns);
-            return Conditions.in(expression, subSelect);
-        });
+			Expression expression = columns.size() == 1 ? columns.iterator().next() : TupleExpression.create(columns);
+			return Conditions.in(expression, subSelect);
+		});
 	}
 
 	/**
@@ -639,12 +614,9 @@ public class SqlGenerator {
 
 		Table table = this.getTable();
 
-		SelectBuilder.SelectWhere selectBuilder = StatementBuilder
-				.select(getIdColumns())
-				.from(table);
+		SelectBuilder.SelectWhere selectBuilder = StatementBuilder.select(getIdColumns()).from(table);
 
-		query.getCriteria()
-				.filter(criteria -> !criteria.isEmpty())
+		query.getCriteria().filter(criteria -> !criteria.isEmpty())
 				.map(criteria -> queryMapper.getMappedObject(parameterSource, criteria, table, entity))
 				.ifPresent(selectBuilder::where);
 
@@ -758,24 +730,27 @@ public class SqlGenerator {
 		return render(select);
 	}
 
-	private String createAcquireLockByQuery(Query query, MapSqlParameterSource parameterSource, LockMode lockMode) {
+	/**
+	 * Create a {@code SELECT id FROM … WHERE … (LOCK CLAUSE)} statement based on the given query.
+	 *
+	 * @param query the query to base the select on. Must not be null.
+	 * @param parameterSource the source for holding the bindings.
+	 * @param lockMode Lock clause mode.
+	 * @return the SQL statement as a {@link String}. Guaranteed to be not {@literal null}.
+	 */
+	String createAcquireLockByQuery(Query query, MapSqlParameterSource parameterSource, LockMode lockMode) {
 
 		Assert.notNull(parameterSource, "parameterSource must not be null");
 
 		Table table = this.getTable();
 
-		SelectBuilder.SelectWhere selectBuilder = StatementBuilder
-				.select(getSingleNonNullColumn())
-				.from(table);
+		SelectBuilder.SelectWhere selectBuilder = StatementBuilder.select(getSingleNonNullColumn()).from(table);
 
-		query.getCriteria()
-				.filter(criteria -> !criteria.isEmpty())
+		query.getCriteria().filter(criteria -> !criteria.isEmpty())
 				.map(criteria -> queryMapper.getMappedObject(parameterSource, criteria, table, entity))
 				.ifPresent(selectBuilder::where);
 
-		Select select = selectBuilder
-				.lock(lockMode)
-				.build();
+		Select select = selectBuilder.lock(lockMode).build();
 
 		return render(select);
 	}
@@ -1475,9 +1450,7 @@ public class SqlGenerator {
 		private final Set<SqlIdentifier> insertableColumns;
 		private final Set<SqlIdentifier> updatableColumns;
 
-		Columns(RelationalPersistentEntity<?> entity,
-				RelationalMappingContext mappingContext,
-				JdbcConverter converter) {
+		Columns(RelationalPersistentEntity<?> entity, RelationalMappingContext mappingContext, JdbcConverter converter) {
 
 			this.mappingContext = mappingContext;
 			this.converter = converter;
@@ -1499,7 +1472,6 @@ public class SqlGenerator {
 		}
 
 		private void populateColumnNameCache(RelationalPersistentEntity<?> entity, String prefix) {
-
 
 			entity.doWithAll(property -> {
 

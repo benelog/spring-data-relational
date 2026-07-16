@@ -228,7 +228,7 @@ public class MyBatisDataAccessStrategy implements DataAccessStrategy {
 				Collections.singletonMap(VERSION_SQL_PARAMETER_NAME_OLD, previousVersion));
 		int affectedRows = sqlSession().delete(statement, parameter);
 		if (affectedRows == 0) {
-			throw OptimisticLockingUtils.deleteFailed(id, previousVersion,  domainType);
+			throw OptimisticLockingUtils.deleteFailed(id, previousVersion, domainType);
 		}
 	}
 
@@ -267,13 +267,13 @@ public class MyBatisDataAccessStrategy implements DataAccessStrategy {
 	}
 
 	@Override
-	public void deleteByQuery(Query query, Class<?> domainType) {
-		throw new UnsupportedOperationException("Not implemented");
+	public long deleteByQuery(Query query, Class<?> domainType) {
+		throw new UnsupportedOperationException("Deleting by query is not supported by the MyBatis data access strategy");
 	}
 
 	@Override
 	public void deleteByQuery(Query query, PersistentPropertyPath<RelationalPersistentProperty> propertyPath) {
-		throw new UnsupportedOperationException("Not implemented");
+		throw new UnsupportedOperationException("Deleting by query is not supported by the MyBatis data access strategy");
 	}
 
 	@Override
@@ -301,7 +301,8 @@ public class MyBatisDataAccessStrategy implements DataAccessStrategy {
 
 	@Override
 	public <T> void acquireLockByQuery(Query query, LockMode lockMode, Class<T> domainType) {
-		throw new UnsupportedOperationException("Not implemented");
+		throw new UnsupportedOperationException(
+				"Acquiring a lock by query is not supported by the MyBatis data access strategy");
 	}
 
 	@Override

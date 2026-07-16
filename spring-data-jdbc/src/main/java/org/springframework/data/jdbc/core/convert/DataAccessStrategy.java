@@ -213,14 +213,19 @@ public interface DataAccessStrategy extends ReadingDataAccessStrategy, RelationR
 	 *
 	 * @param query the query specifying which rows to delete. Must not be {@code null}.
 	 * @param domainType the domain type of the entity. Must not be {@code null}.
+	 * @return the number of deleted rows.
+	 * @since 4.2
 	 */
-	void deleteByQuery(Query query, Class<?> domainType);
+	long deleteByQuery(Query query, Class<?> domainType);
 
 	/**
-	 * Deletes entities reachable via the given {@link PersistentPropertyPath} from root entities that match the given {@link Query}.
+	 * Deletes entities reachable via the given {@link PersistentPropertyPath} from root entities that match the given
+	 * {@link Query}.
 	 *
-	 * @param query the query specifying which root entities to consider for deleting related entities. Must not be {@code null}.
+	 * @param query the query specifying which root entities to consider for deleting related entities. Must not be
+	 *          {@code null}.
 	 * @param propertyPath Leading from the root object to the entities to be deleted. Must not be {@code null}.
+	 * @since 4.2
 	 */
 	void deleteByQuery(Query query, PersistentPropertyPath<RelationalPersistentProperty> propertyPath);
 
@@ -248,6 +253,7 @@ public interface DataAccessStrategy extends ReadingDataAccessStrategy, RelationR
 	 * @param lockMode the lock mode to apply to the query (e.g. {@code FOR UPDATE}). Must not be {@code null}.
 	 * @param domainType the domain type of the entities to be locked. Must not be {@code null}.
 	 * @param <T> the type of the domain entity.
+	 * @since 4.2
 	 */
 	<T> void acquireLockByQuery(Query query, LockMode lockMode, Class<T> domainType);
 

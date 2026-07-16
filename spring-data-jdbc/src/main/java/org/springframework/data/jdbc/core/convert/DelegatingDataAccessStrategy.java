@@ -133,8 +133,8 @@ public class DelegatingDataAccessStrategy implements DataAccessStrategy {
 	}
 
 	@Override
-	public void deleteByQuery(Query query, Class<?> domainType) {
-		delegate.deleteByQuery(query, domainType);
+	public long deleteByQuery(Query query, Class<?> domainType) {
+		return delegate.deleteByQuery(query, domainType);
 	}
 
 	@Override

@@ -69,17 +69,21 @@ class AggregateChangeExecutor {
 	 *
 	 * @param aggregateChange the aggregate change to be executed. Must not be {@literal null}.
 	 * @param <T> the type of the aggregate root.
+	 * @return the number of aggregate roots affected by the change.
 	 * @since 3.0
 	 */
-	<T> void executeDelete(AggregateChange<T> aggregateChange) {
+	<T> long executeDelete(AggregateChange<T> aggregateChange) {
 
 		JdbcAggregateChangeExecutionContext executionContext = new JdbcAggregateChangeExecutionContext(converter,
 				accessStrategy);
 
-		aggregateChange.forEachAction(action -> execute(action, executionContext));
+		long[] affectedRows = { 0 };
+		aggregateChange.forEachAction(action -> affectedRows[0] += execute(action, executionContext));
+
+		return affectedRows[0];
 	}
 
-	private void execute(DbAction<?> action, JdbcAggregateChangeExecutionContext executionContext) {
+	private long execute(DbAction<?> action, JdbcAggregateChangeExecutionContext executionContext) {
 
 		if (action instanceof DbAction.InsertRoot<?> insertRoot) {
 			executionContext.executeInsertRoot(insertRoot);
@@ -106,17 +110,19 @@ class AggregateChangeExecutor {
 		} else if (action instanceof DbAction.DeleteAllRoot<?> deleteAllRoot) {
 			executionContext.executeDeleteAllRoot(deleteAllRoot);
 		} else if (action instanceof DbAction.DeleteRootByQuery<?> deleteRootByQuery) {
-			executionContext.excuteDeleteRootByQuery(deleteRootByQuery);
+			return executionContext.executeDeleteRootByQuery(deleteRootByQuery);
 		} else if (action instanceof DbAction.DeleteByQuery<?> deleteByQuery) {
-			executionContext.excuteDeleteByQuery(deleteByQuery);
+			executionContext.executeDeleteByQuery(deleteByQuery);
 		} else if (action instanceof DbAction.AcquireLockRoot<?> acquireLockRoot) {
 			executionContext.executeAcquireLock(acquireLockRoot);
 		} else if (action instanceof DbAction.AcquireLockAllRoot<?> acquireLockAllRoot) {
 			executionContext.executeAcquireLockAllRoot(acquireLockAllRoot);
 		} else if (action instanceof DbAction.AcquireLockAllRootByQuery<?> acquireLockAllRootByQuery) {
-			executionContext.executeAcquireLockRootByQuery(acquireLockAllRootByQuery);
+			executionContext.executeAcquireLockAllRootByQuery(acquireLockAllRootByQuery);
 		} else {
 			throw new RuntimeException("unexpected action");
 		}
+
+		return 0;
 	}
 }

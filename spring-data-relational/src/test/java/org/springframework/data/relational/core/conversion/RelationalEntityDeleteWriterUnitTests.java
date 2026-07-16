@@ -15,6 +15,11 @@
  */
 package org.springframework.data.relational.core.conversion;
 
+import static org.assertj.core.api.Assertions.*;
+
+import java.util.ArrayList;
+import java.util.List;
+
 import org.assertj.core.groups.Tuple;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,11 +35,6 @@ import org.springframework.data.relational.core.conversion.DbAction.DeleteRoot;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.relational.core.query.Criteria;
 import org.springframework.data.relational.core.query.Query;
-
-import java.util.ArrayList;
-import java.util.List;
-
-import static org.assertj.core.api.Assertions.*;
 
 /**
  * Unit tests for the {@link org.springframework.data.relational.core.conversion.RelationalEntityDeleteWriter}
@@ -155,12 +155,10 @@ public class RelationalEntityDeleteWriterUnitTests {
 
 		assertThat(extractActions(aggregateChange))
 				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath)
-				.containsExactly(
-						Tuple.tuple(DbAction.AcquireLockAllRootByQuery.class, SomeEntity.class, ""),
+				.containsExactly(Tuple.tuple(DbAction.AcquireLockAllRootByQuery.class, SomeEntity.class, ""),
 						Tuple.tuple(DbAction.DeleteByQuery.class, YetAnother.class, "other.yetAnother"),
 						Tuple.tuple(DbAction.DeleteByQuery.class, OtherEntity.class, "other"),
-						Tuple.tuple(DbAction.DeleteRootByQuery.class, SomeEntity.class, "")
-				);
+						Tuple.tuple(DbAction.DeleteRootByQuery.class, SomeEntity.class, ""));
 	}
 
 	@Test // GH-1978
@@ -173,12 +171,10 @@ public class RelationalEntityDeleteWriterUnitTests {
 
 		assertThat(extractActions(aggregateChange))
 				.extracting(DbAction::getClass, DbAction::getEntityType, DbActionTestSupport::extractPath)
-				.containsExactly(
-						Tuple.tuple(DbAction.AcquireLockAllRoot.class, SomeEntity.class, ""),
+				.containsExactly(Tuple.tuple(DbAction.AcquireLockAllRoot.class, SomeEntity.class, ""),
 						Tuple.tuple(DbAction.DeleteAll.class, YetAnother.class, "other.yetAnother"),
 						Tuple.tuple(DbAction.DeleteAll.class, OtherEntity.class, "other"),
-						Tuple.tuple(DbAction.DeleteAllRoot.class, SomeEntity.class, "")
-				);
+						Tuple.tuple(DbAction.DeleteRootByQuery.class, SomeEntity.class, ""));
 	}
 
 	private List<DbAction<?>> extractActions(MutableAggregateChange<?> aggregateChange) {
@@ -229,10 +225,8 @@ public class RelationalEntityDeleteWriterUnitTests {
 
 	private static class WithReadOnlyReference {
 
-		@Id
-		final Long id;
-		@ReadOnlyProperty
-		OtherEntity other;
+		@Id final Long id;
+		@ReadOnlyProperty OtherEntity other;
 
 		public WithReadOnlyReference(Long id) {
 			this.id = id;

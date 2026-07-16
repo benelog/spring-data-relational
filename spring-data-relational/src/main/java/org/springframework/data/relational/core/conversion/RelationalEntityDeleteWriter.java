@@ -74,9 +74,9 @@ public class RelationalEntityDeleteWriter implements EntityWriter<Object, Mutabl
 	}
 
 	/**
-	 * Fills the provided {@link MutableAggregateChange} with the necessary {@link DbAction}s
-	 * to delete all aggregate roots matching the given {@link Query}.
-	 * This includes acquiring locks, deleting referenced entities, and deleting the root entities themselves.
+	 * Fills the provided {@link MutableAggregateChange} with the necessary {@link DbAction}s to delete all aggregate
+	 * roots matching the given {@link Query}. This includes acquiring locks, deleting referenced entities, and deleting
+	 * the root entities themselves.
 	 *
 	 * @param query the query used to select aggregate root IDs to delete. Must not be {@code null}.
 	 * @param aggregateChange The change object to which delete actions will be added. Must not be {@code null}.
@@ -86,20 +86,25 @@ public class RelationalEntityDeleteWriter implements EntityWriter<Object, Mutabl
 		Class<?> entityType = aggregateChange.getEntityType();
 
 		CriteriaDefinition criteria = query.getCriteria().orElse(null);
-		if (criteria == null || criteria.isEmpty()) {
-			deleteAll(entityType).forEach(aggregateChange::addAction);
-			return;
-		}
+		boolean unfiltered = criteria == null || criteria.isEmpty();
 
 		List<DbAction<?>> deleteReferencedActions = new ArrayList<>();
 
-		forAllTableRepresentingPaths(entityType, p -> deleteReferencedActions.add(new DbAction.DeleteByQuery<>(query, p)));
+		// When there is no criteria the referenced entities can be deleted with plain (and cheaper) DELETE statements,
+		// otherwise they have to be filtered through a subselect based on the query.
+		if (unfiltered) {
+			forAllTableRepresentingPaths(entityType, p -> deleteReferencedActions.add(new DbAction.DeleteAll<>(p)));
+		} else {
+			forAllTableRepresentingPaths(entityType,
+					p -> deleteReferencedActions.add(new DbAction.DeleteByQuery<>(query, p)));
+		}
 
 		Collections.reverse(deleteReferencedActions);
 
 		List<DbAction<?>> actions = new ArrayList<>();
 		if (!deleteReferencedActions.isEmpty()) {
-			actions.add(new DbAction.AcquireLockAllRootByQuery<>(entityType, query));
+			actions.add(unfiltered ? new DbAction.AcquireLockAllRoot<>(entityType)
+					: new DbAction.AcquireLockAllRootByQuery<>(entityType, query));
 		}
 		actions.addAll(deleteReferencedActions);
 

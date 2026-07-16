@@ -363,13 +363,17 @@ public interface JdbcAggregateOperations {
 	<T> void deleteAll(Iterable<? extends T> aggregateRoots);
 
 	/**
-	 * Deletes all aggregates of the given type that match the provided query.
+	 * Deletes all aggregates of the given type that match the provided query. Does not trigger events for the deleted
+	 * entities. If events are required select the ids of the entities to delete with {@link #findAll(Query, Class)} and
+	 * use {@link #deleteAllById(Iterable, Class)}.
 	 *
 	 * @param query Must not be {@code null}.
 	 * @param domainType the type of the aggregate root. Must not be {@code null}.
 	 * @param <T> the type of the aggregate root.
+	 * @return the number of deleted aggregate roots.
+	 * @since 4.2
 	 */
-	<T> void deleteAllByQuery(Query query, Class<T> domainType);
+	<T> long deleteAllByQuery(Query query, Class<T> domainType);
 
 	/**
 	 * Returns the {@link JdbcConverter}.
