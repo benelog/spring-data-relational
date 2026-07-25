@@ -34,6 +34,7 @@ import org.springframework.data.repository.core.NamedQueries;
 import org.springframework.data.repository.core.RepositoryMetadata;
 import org.springframework.data.repository.core.support.PropertiesBasedNamedQueries;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 /**
  * Unit tests for {@link JdbcQueryMethod}.
@@ -43,6 +44,7 @@ import org.springframework.jdbc.core.RowMapper;
  * @author Moises Cisneros
  * @author Mark Paluch
  * @author Diego Krupitza
+ * @author Sanghyuk Jung
  */
 public class JdbcQueryMethodUnitTests {
 
@@ -148,6 +150,28 @@ public class JdbcQueryMethodUnitTests {
 		assertThat(queryMethodWithWriteLock.lookupLockAnnotation()).isEmpty();
 	}
 
+	@Test // GH-542
+	public void returnsSpecifiedQueryProviderClass() throws NoSuchMethodException {
+
+		JdbcQueryMethod queryMethod = createJdbcQueryMethod("queryMethodWithQueryProvider");
+
+		assertThat(queryMethod.getQueryProviderClass()).isEqualTo(CustomQueryProvider.class);
+		assertThat(queryMethod.hasQueryProvider()).isTrue();
+	}
+
+	@Test // GH-542
+	public void detectsAbsenceOfQueryProvider() throws NoSuchMethodException {
+
+		JdbcQueryMethod queryMethod = createJdbcQueryMethod("queryMethod");
+
+		assertThat(queryMethod.hasQueryProvider()).isFalse();
+
+		JdbcQueryMethod queryMethodWithoutAnnotation = createJdbcQueryMethod("methodWithoutAnyQuery");
+
+		assertThat(queryMethodWithoutAnnotation.hasQueryProvider()).isFalse();
+		assertThat(queryMethodWithoutAnnotation.getQueryProviderClass()).isNull();
+	}
+
 	@Lock(LockMode.PESSIMISTIC_WRITE)
 	@Query
 	private void queryMethodWithWriteLock() {}
@@ -169,11 +193,22 @@ public class JdbcQueryMethodUnitTests {
 
 	private void methodWithoutAnyQuery() {}
 
+	@Query(queryProviderClass = CustomQueryProvider.class)
+	private void queryMethodWithQueryProvider() {}
+
 	private class CustomRowMapper implements RowMapper<Object> {
 
 		@Override
 		public Object mapRow(ResultSet rs, int rowNum) {
 			return null;
+		}
+	}
+
+	private static class CustomQueryProvider implements QueryProvider {
+
+		@Override
+		public String getQuery(SqlParameterSource parameterSource) {
+			return QUERY;
 		}
 	}
 }

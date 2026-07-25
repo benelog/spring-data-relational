@@ -51,6 +51,7 @@ import org.springframework.util.StringUtils;
  * @author Diego Krupitza
  * @author Mark Paluch
  * @author Daeho Kwon
+ * @author Sanghyuk Jung
  */
 public class JdbcQueryMethod extends QueryMethod {
 
@@ -206,6 +207,27 @@ public class JdbcQueryMethod extends QueryMethod {
 	@Nullable
 	String getResultSetExtractorRef() {
 		return getMergedAnnotationAttribute("resultSetExtractorRef");
+	}
+
+	/**
+	 * Returns the class to be used as {@link QueryProvider} to generate the SQL statement to execute at runtime.
+	 *
+	 * @return May be {@code null}.
+	 * @since 4.2
+	 */
+	@Nullable
+	public Class<? extends QueryProvider> getQueryProviderClass() {
+		return getMergedAnnotationAttribute("queryProviderClass");
+	}
+
+	/**
+	 * @return {@literal true} if the method is annotated with {@code @Query(queryProviderClass=…)}.
+	 * @since 4.2
+	 */
+	public boolean hasQueryProvider() {
+
+		Class<? extends QueryProvider> queryProviderClass = getQueryProviderClass();
+		return queryProviderClass != null && queryProviderClass != QueryProvider.class;
 	}
 
 	/**

@@ -40,6 +40,7 @@ import org.springframework.data.jdbc.testing.IntegrationTest;
 import org.springframework.data.jdbc.testing.TestConfiguration;
 import org.springframework.data.repository.CrudRepository;
 import org.springframework.data.repository.query.Param;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 
 /**
  * Tests the execution of queries from {@link Query} annotations on repository methods.
@@ -48,6 +49,7 @@ import org.springframework.data.repository.query.Param;
  * @author Kazuki Shimizu
  * @author Mark Paluch
  * @author Dennis Effing
+ * @author Sanghyuk Jung
  */
 @IntegrationTest
 @EnabledOnDatabase(DatabaseType.HSQL)
@@ -263,6 +265,32 @@ public class QueryAnnotationHsqlIntegrationTests {
 		assertThat(repository.immutableTuple()).isEqualTo(new DummyEntityRepository.ImmutableTuple("one", "two", 3));
 	}
 
+	@Test // GH-542
+	public void executeQueryFromQueryProviderWithoutCondition() {
+
+		repository.save(dummyEntity("a"));
+		repository.save(dummyEntity("b"));
+
+		List<DummyEntity> entities = repository.findWithDynamicNameCondition(null);
+
+		assertThat(entities) //
+				.extracting(e -> e.name) //
+				.containsExactlyInAnyOrder("a", "b");
+	}
+
+	@Test // GH-542
+	public void executeQueryFromQueryProviderWithCondition() {
+
+		repository.save(dummyEntity("a"));
+		repository.save(dummyEntity("b"));
+
+		List<DummyEntity> entities = repository.findWithDynamicNameCondition("a");
+
+		assertThat(entities) //
+				.extracting(e -> e.name) //
+				.containsExactly("a");
+	}
+
 	private DummyEntity dummyEntity(String name) {
 
 		DummyEntity entity = new DummyEntity();
@@ -338,7 +366,21 @@ public class QueryAnnotationHsqlIntegrationTests {
 		@Query("SELECT 'one' one, 'two' two, 3 three FROM (VALUES (0)) as tableName")
 		ImmutableTuple immutableTuple();
 
+		// GH-542
+		@Query(queryProviderClass = DynamicNameQueryProvider.class)
+		List<DummyEntity> findWithDynamicNameCondition(@Param("name") @Nullable String name);
+
 		record ImmutableTuple(String one, String two, int three) {
+		}
+	}
+
+	static class DynamicNameQueryProvider implements QueryProvider {
+
+		@Override
+		public String getQuery(SqlParameterSource parameterSource) {
+
+			String sql = "SELECT * FROM DUMMY_ENTITY";
+			return isNotNull(parameterSource, "name") ? sql + " WHERE name = :name" : sql;
 		}
 	}
 }

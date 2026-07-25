@@ -165,6 +165,45 @@ The location of that file may be changed by setting a value to `@EnableJdbcRepos
 
 Named queries are handled in the same way as queries provided by annotation.
 
+[[jdbc.query-methods.at-query.query-provider]]
+== Dynamic Queries with `QueryProvider`
+
+Instead of a static SQL statement, the `@Query` annotation can reference a `QueryProvider` implementation via the `queryProviderClass` attribute.
+A `QueryProvider` generates the SQL statement to execute at runtime, based on the actual parameter values.
+This allows composing the SQL statement per invocation, for example by appending a condition only when a parameter is not `null`:
+
+.Declare a query method using a QueryProvider
+[source,java]
+----
+interface UserRepository extends CrudRepository<User, Long> {
+
+    @Query(queryProviderClass = UserQueryProvider.class)
+    List<User> findByCityAndOptionalName(@Param("city") String city, @Param("name") @Nullable String name);
+}
+
+class UserQueryProvider implements QueryProvider {
+
+    @Override
+    public String getQuery(SqlParameterSource parameterSource) {
+
+        String sql = "SELECT * FROM user WHERE city = :city";
+        return isNotNull(parameterSource, "name") ? sql + " AND name = :name" : sql;
+    }
+}
+----
+
+The provider receives the fully bound `SqlParameterSource` for inspection while parameter binding, query execution, and result mapping remain handled by Spring Data JDBC.
+The returned SQL statement may contain named parameters matching the bound parameter names and gets executed as is.
+A custom `RowMapper` or `ResultSetExtractor` may be configured as for any other `@Query` method.
+
+The following restrictions apply:
+
+* `queryProviderClass` is mutually exclusive with the `value` and `name` attributes of `@Query`.
+* The configured class must expose a default constructor and must be thread-safe, as a single instance is shared across query method executions.
+* SpEL expressions (`:#{…}`, `#{tableName}`) are not processed within the SQL statement returned by a provider.
+* As with other string-based queries, pagination, `Sort`, and `Limit` parameters are not supported.
+* Query methods using a `QueryProvider` are not subject to ahead-of-time (AOT) repository generation; they are resolved at runtime.
+
 [[jdbc.query-methods.customizing-query-methods]]
 === Customizing Query Methods
 

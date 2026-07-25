@@ -165,4 +165,11 @@ public interface UserRepository extends CrudRepository<User, Integer> {
 	@Query("delete from MY_USER where firstname = :firstname")
 	void deleteWithoutResult(String firstname);
 
+	// -------------------------------------------------------------------------
+	// Dynamic Queries
+	// -------------------------------------------------------------------------
+
+	@Query(queryProviderClass = UserQueryProvider.class)
+	List<User> findWithDynamicQuery(String name);
+
 }

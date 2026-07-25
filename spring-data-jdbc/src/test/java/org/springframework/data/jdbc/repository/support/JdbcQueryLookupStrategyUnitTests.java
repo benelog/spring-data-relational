@@ -35,6 +35,7 @@ import org.springframework.data.jdbc.core.convert.QueryMappingConfiguration;
 import org.springframework.data.jdbc.core.dialect.JdbcH2Dialect;
 import org.springframework.data.jdbc.repository.config.DefaultQueryMappingConfiguration;
 import org.springframework.data.jdbc.repository.query.Query;
+import org.springframework.data.jdbc.repository.query.QueryProvider;
 import org.springframework.data.projection.ProjectionFactory;
 import org.springframework.data.relational.core.mapping.RelationalMappingContext;
 import org.springframework.data.repository.core.NamedQueries;
@@ -59,6 +60,7 @@ import org.springframework.util.ReflectionUtils;
  * @author Hebert Coelho
  * @author Diego Krupitza
  * @author Christopher Klein
+ * @author Sanghyuk Jung
  */
 class JdbcQueryLookupStrategyUnitTests {
 
@@ -132,6 +134,54 @@ class JdbcQueryLookupStrategyUnitTests {
 				.hasMessageContaining("findByName");
 	}
 
+	@Test // GH-542
+	void resolvesQueryProviderQuery() {
+
+		RowMapper<? extends NumberFormat> numberFormatMapper = mock(RowMapper.class);
+		QueryMappingConfiguration mappingConfiguration = new DefaultQueryMappingConfiguration()
+				.registerRowMapper(NumberFormat.class, numberFormatMapper);
+
+		RepositoryQuery repositoryQuery = getRepositoryQuery(QueryLookupStrategy.Key.CREATE_IF_NOT_FOUND,
+				"findByQueryProvider", mappingConfiguration);
+
+		repositoryQuery.execute(new Object[] {});
+
+		verify(jdbcOperations).queryForObject(eq("SQL from provider"), any(SqlParameterSource.class), any(RowMapper.class));
+	}
+
+	@Test // GH-542
+	void failsOnQueryProviderCombinedWithDeclaredQuery() {
+
+		QueryMappingConfiguration mappingConfiguration = new DefaultQueryMappingConfiguration();
+
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> getRepositoryQuery(QueryLookupStrategy.Key.CREATE_IF_NOT_FOUND, "withQueryProviderAndValue",
+						mappingConfiguration))
+				.withMessageContaining("query provider");
+	}
+
+	@Test // GH-542
+	void failsOnQueryProviderCombinedWithQueryName() {
+
+		QueryMappingConfiguration mappingConfiguration = new DefaultQueryMappingConfiguration();
+
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> getRepositoryQuery(QueryLookupStrategy.Key.CREATE_IF_NOT_FOUND, "withQueryProviderAndName",
+						mappingConfiguration))
+				.withMessageContaining("query provider");
+	}
+
+	@Test // GH-542
+	void failsOnNonInstantiableQueryProvider() {
+
+		QueryMappingConfiguration mappingConfiguration = new DefaultQueryMappingConfiguration();
+
+		assertThatIllegalArgumentException()
+				.isThrownBy(() -> getRepositoryQuery(QueryLookupStrategy.Key.USE_DECLARED_QUERY,
+						"withNonInstantiableQueryProvider", mappingConfiguration))
+				.withMessageContaining("Could not instantiate QueryProvider");
+	}
+
 	@ParameterizedTest
 	@MethodSource("correctLookUpStrategyForKeySource")
 	void correctLookUpStrategyForKey(QueryLookupStrategy.Key key, Class expectedClass) {
@@ -177,9 +227,31 @@ class JdbcQueryLookupStrategyUnitTests {
 		void annotatedQueryWithQueryAndQueryName();
 
 		NumberFormat findByName();
+
+		@Query(queryProviderClass = StaticQueryProvider.class)
+		NumberFormat findByQueryProvider();
+
+		@Query(value = "some SQL", queryProviderClass = StaticQueryProvider.class)
+		NumberFormat withQueryProviderAndValue();
+
+		@Query(name = "query-name", queryProviderClass = StaticQueryProvider.class)
+		NumberFormat withQueryProviderAndName();
+
+		@Query(queryProviderClass = NonInstantiableQueryProvider.class)
+		NumberFormat withNonInstantiableQueryProvider();
 	}
 
 	record NumberFormat(String numberFormatString) {
 
 	}
+
+	static class StaticQueryProvider implements QueryProvider {
+
+		@Override
+		public String getQuery(SqlParameterSource parameterSource) {
+			return "SQL from provider";
+		}
+	}
+
+	abstract static class NonInstantiableQueryProvider implements QueryProvider {}
 }

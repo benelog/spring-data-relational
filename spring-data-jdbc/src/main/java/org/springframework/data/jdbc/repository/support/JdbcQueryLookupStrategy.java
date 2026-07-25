@@ -21,9 +21,12 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.jspecify.annotations.Nullable;
 
+import org.springframework.beans.BeanInstantiationException;
+import org.springframework.beans.BeanUtils;
 import org.springframework.data.jdbc.core.JdbcAggregateOperations;
 import org.springframework.data.jdbc.repository.query.JdbcQueryMethod;
 import org.springframework.data.jdbc.repository.query.PartTreeJdbcQuery;
+import org.springframework.data.jdbc.repository.query.QueryProvider;
 import org.springframework.data.jdbc.repository.query.RowMapperFactory;
 import org.springframework.data.jdbc.repository.query.StringBasedJdbcQuery;
 import org.springframework.data.projection.ProjectionFactory;
@@ -48,6 +51,7 @@ import org.springframework.util.Assert;
  * @author Diego Krupitza
  * @author Christopher Klein
  * @author Mikhail Polivakha
+ * @author Sanghyuk Jung
  */
 abstract class JdbcQueryLookupStrategy extends RelationalQueryLookupStrategy {
 
@@ -114,6 +118,24 @@ abstract class JdbcQueryLookupStrategy extends RelationalQueryLookupStrategy {
 
 			JdbcQueryMethod queryMethod = getJdbcQueryMethod(method, repositoryMetadata, projectionFactory, namedQueries);
 
+			if (queryMethod.hasQueryProvider()) {
+
+				if (queryMethod.hasAnnotatedQuery() || queryMethod.hasAnnotatedQueryName()) {
+					throw new IllegalArgumentException(String.format(
+							"Invalid query configuration; Query method %s is annotated with both, a query provider and a query or a query name; Configure either one but not both",
+							method));
+				}
+
+				if (namedQueries.hasQuery(queryMethod.getNamedQueryName())) {
+					LOG.warn(String.format(
+							"Query method %s is annotated with a query provider and a named query exists; Using the query provider",
+							method));
+				}
+
+				return new StringBasedJdbcQuery(createQueryProvider(queryMethod, method), queryMethod, operations,
+						rowMapperFactory, delegate);
+			}
+
 			if (namedQueries.hasQuery(queryMethod.getNamedQueryName()) || queryMethod.hasAnnotatedQuery()) {
 
 				if (queryMethod.hasAnnotatedQuery() && queryMethod.hasAnnotatedQueryName()) {
@@ -128,6 +150,20 @@ abstract class JdbcQueryLookupStrategy extends RelationalQueryLookupStrategy {
 
 			throw new IllegalStateException(
 					String.format("Did neither find a NamedQuery nor an annotated query for method %s", method));
+		}
+
+		private static QueryProvider createQueryProvider(JdbcQueryMethod queryMethod, Method method) {
+
+			Class<? extends QueryProvider> queryProviderClass = queryMethod.getQueryProviderClass();
+
+			Assert.state(queryProviderClass != null, "QueryProvider class must not be null");
+
+			try {
+				return BeanUtils.instantiateClass(queryProviderClass);
+			} catch (BeanInstantiationException e) {
+				throw new IllegalArgumentException(String.format("Could not instantiate QueryProvider %s for query method %s",
+						queryProviderClass.getName(), method), e);
+			}
 		}
 	}
 

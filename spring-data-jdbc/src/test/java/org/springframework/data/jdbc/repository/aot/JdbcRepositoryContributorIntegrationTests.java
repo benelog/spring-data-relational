@@ -435,4 +435,11 @@ class JdbcRepositoryContributorIntegrationTests {
 		assertThat(fragment.deleteOneByFirstname("Walter")).isNull();
 	}
 
+	@Test // GH-542
+	void shouldNotContributeQueryProviderMethod() {
+
+		assertThatThrownBy(() -> fragment.findWithDynamicQuery("Walter"))
+				.hasRootCauseInstanceOf(NoSuchMethodException.class);
+	}
+
 }

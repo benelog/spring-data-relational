@@ -85,6 +85,7 @@ import org.springframework.util.ReflectionUtils;
  * @author Christopher Klein
  * @author Marcin Grzejszczak
  * @author Mikhail Polivakha
+ * @author Sanghyuk Jung
  */
 class StringBasedJdbcQueryUnitTests {
 
@@ -423,6 +424,51 @@ class StringBasedJdbcQueryUnitTests {
 		assertThat(parameterSource.getSqlType("value")).isEqualTo(JDBCType.OTHER.getVendorTypeNumber());
 	}
 
+	@Test // GH-542
+	void queryProviderGeneratedSqlGetsExecuted() {
+
+		JdbcQueryMethod queryMethod = createMethod("findAllWithQueryProvider", String.class);
+		StringBasedJdbcQuery query = createQueryWithQueryProvider(queryMethod, new DynamicQueryProvider());
+
+		query.execute(new Object[] { "John" });
+
+		ArgumentCaptor<SqlParameterSource> paramSource = ArgumentCaptor.forClass(SqlParameterSource.class);
+		verify(operations).queryForObject(eq("SELECT * FROM dummy_entity WHERE name = :name"), paramSource.capture(),
+				any(RowMapper.class));
+		assertThat(paramSource.getValue().getValue("name")).isEqualTo("John");
+	}
+
+	@Test // GH-542
+	void queryProviderGeneratesSqlBasedOnBoundParameterValues() {
+
+		JdbcQueryMethod queryMethod = createMethod("findAllWithQueryProvider", String.class);
+		StringBasedJdbcQuery query = createQueryWithQueryProvider(queryMethod, new DynamicQueryProvider());
+
+		query.execute(new Object[] { null });
+
+		verify(operations).queryForObject(eq("SELECT * FROM dummy_entity"), any(SqlParameterSource.class),
+				any(RowMapper.class));
+	}
+
+	@Test // GH-542
+	void queryProviderReturningEmptyQueryThrowsException() {
+
+		JdbcQueryMethod queryMethod = createMethod("findAllWithQueryProvider", String.class);
+		StringBasedJdbcQuery query = createQueryWithQueryProvider(queryMethod, parameterSource -> "");
+
+		assertThatIllegalStateException().isThrownBy(() -> query.execute(new Object[] { "John" }))
+				.withMessageContaining("returned a null or empty query");
+	}
+
+	@Test // GH-542
+	void queryProviderQueryUsesCustomRowMapperWhenSpecified() {
+
+		JdbcQueryMethod queryMethod = createMethod("findAllWithQueryProviderAndCustomRowMapper", String.class);
+		StringBasedJdbcQuery query = createQueryWithQueryProvider(queryMethod, new DynamicQueryProvider());
+
+		assertThat(query.determineRowMapper(queryMethod.getResultProcessor(), false)).isInstanceOf(CustomRowMapper.class);
+	}
+
 	QueryFixture forMethod(String name, Class... paramTypes) {
 		return new QueryFixture(createMethod(name, paramTypes));
 	}
@@ -490,6 +536,11 @@ class StringBasedJdbcQueryUnitTests {
 	private StringBasedJdbcQuery createQuery(JdbcQueryMethod queryMethod, String preparedReference, Object value) {
 		return new StringBasedJdbcQuery(queryMethod, operations, new StubRowMapperFactory(preparedReference, value),
 				converter, delegate);
+	}
+
+	private StringBasedJdbcQuery createQueryWithQueryProvider(JdbcQueryMethod queryMethod, QueryProvider queryProvider) {
+		return new StringBasedJdbcQuery(queryProvider, queryMethod, operations, result -> defaultRowMapper, converter,
+				delegate);
 	}
 
 	interface MyRepository extends Repository<Object, Long> {
@@ -572,6 +623,22 @@ class StringBasedJdbcQueryUnitTests {
 
 		@Query(value = "some sql statement")
 		List<DummyEntity> findByCustomValue(@Param("value") Direction value);
+
+		@Query(queryProviderClass = DynamicQueryProvider.class)
+		List<Object> findAllWithQueryProvider(@Param("name") String name);
+
+		@Query(queryProviderClass = DynamicQueryProvider.class, rowMapperClass = CustomRowMapper.class)
+		List<Object> findAllWithQueryProviderAndCustomRowMapper(@Param("name") String name);
+	}
+
+	static class DynamicQueryProvider implements QueryProvider {
+
+		@Override
+		public String getQuery(SqlParameterSource parameterSource) {
+
+			String sql = "SELECT * FROM dummy_entity";
+			return isNotNull(parameterSource, "name") ? sql + " WHERE name = :name" : sql;
+		}
 	}
 
 	private static class CustomRowMapper implements RowMapper<Object> {

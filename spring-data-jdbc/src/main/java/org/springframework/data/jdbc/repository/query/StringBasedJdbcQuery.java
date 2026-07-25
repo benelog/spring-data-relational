@@ -48,9 +48,11 @@ import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcOperations;
+import org.springframework.jdbc.core.namedparam.SqlParameterSource;
 import org.springframework.util.Assert;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.ObjectUtils;
+import org.springframework.util.StringUtils;
 
 /**
  * A query to be executed based on a repository method, it's annotated SQL query and the arguments provided to the
@@ -66,6 +68,7 @@ import org.springframework.util.ObjectUtils;
  * @author Christopher Klein
  * @author Mikhail Polivakha
  * @author Marcin Grzejszczak
+ * @author Sanghyuk Jung
  * @since 2.0
  */
 public class StringBasedJdbcQuery extends AbstractJdbcQuery {
@@ -74,8 +77,9 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	private static final String LOCKING_IS_NOT_SUPPORTED = "Currently, @Lock is supported only on derived queries. In other words, for queries created with @Query, the locking condition specified with @Lock does nothing. Offending method: ";
 	private final JdbcConverter converter;
 	private final org.springframework.data.jdbc.repository.query.RowMapperFactory rowMapperFactory;
-	private final ValueExpressionQueryRewriter.ParsedQuery parsedQuery;
-	private final String query;
+	private final ValueExpressionQueryRewriter.@Nullable ParsedQuery parsedQuery;
+	private final @Nullable String query;
+	private final @Nullable QueryProvider queryProvider;
 
 	private final CachedRowMapperFactory cachedRowMapperFactory;
 	private final CachedResultSetExtractorFactory cachedResultSetExtractorFactory;
@@ -113,10 +117,21 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 	public StringBasedJdbcQuery(String query, JdbcQueryMethod queryMethod, NamedParameterJdbcOperations operations,
 			org.springframework.data.jdbc.repository.query.RowMapperFactory rowMapperFactory, JdbcConverter converter,
 			ValueExpressionDelegate delegate) {
+		this(query, null, queryMethod, operations, rowMapperFactory, converter, delegate);
+	}
+
+	private StringBasedJdbcQuery(@Nullable String query, @Nullable QueryProvider queryProvider,
+			JdbcQueryMethod queryMethod, NamedParameterJdbcOperations operations,
+			org.springframework.data.jdbc.repository.query.RowMapperFactory rowMapperFactory, JdbcConverter converter,
+			ValueExpressionDelegate delegate) {
 
 		super(queryMethod, operations);
 
-		Assert.hasText(query, "Query must not be null or empty");
+		if (query == null) {
+			Assert.notNull(queryProvider, "Either Query or QueryProvider must not be null");
+		} else {
+			Assert.hasText(query, "Query must not be null or empty");
+		}
 		Assert.notNull(rowMapperFactory, "RowMapperFactory must not be null");
 
 		this.converter = converter;
@@ -146,11 +161,12 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 				(counter, expression) -> String.format("__$synthetic$__%d", counter + 1), String::concat);
 
 		this.query = query;
+		this.queryProvider = queryProvider;
 
 		if (queryMethod.hasLockMode()) {
 			throw new UnsupportedOperationException(LOCKING_IS_NOT_SUPPORTED + queryMethod);
 		}
-		this.parsedQuery = rewriter.parse(this.query);
+		this.parsedQuery = query != null ? rewriter.parse(query) : null;
 		this.delegate = delegate;
 	}
 
@@ -171,6 +187,43 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 				operations.getConverter(), delegate);
 	}
 
+	/**
+	 * Creates a new {@link StringBasedJdbcQuery} for the given {@link QueryProvider}, {@link JdbcQueryMethod},
+	 * {@link JdbcAggregateOperations} and {@link RowMapperFactory}. The SQL statement to execute gets obtained from the
+	 * given {@link QueryProvider} on every query method invocation.
+	 *
+	 * @param queryProvider must not be {@literal null}.
+	 * @param queryMethod must not be {@literal null}.
+	 * @param operations must not be {@literal null}.
+	 * @param rowMapperFactory must not be {@literal null}.
+	 * @param delegate must not be {@literal null}.
+	 * @since 4.2
+	 */
+	public StringBasedJdbcQuery(QueryProvider queryProvider, JdbcQueryMethod queryMethod,
+			JdbcAggregateOperations operations, RowMapperFactory rowMapperFactory, ValueExpressionDelegate delegate) {
+		this(null, queryProvider, queryMethod, operations.getDataAccessStrategy().getJdbcOperations(), rowMapperFactory,
+				operations.getConverter(), delegate);
+	}
+
+	/**
+	 * Creates a new {@link StringBasedJdbcQuery} for the given {@link QueryProvider}, {@link JdbcQueryMethod},
+	 * {@link RelationalMappingContext} and {@link RowMapperFactory}. The SQL statement to execute gets obtained from the
+	 * given {@link QueryProvider} on every query method invocation.
+	 *
+	 * @param queryProvider must not be {@literal null}.
+	 * @param queryMethod must not be {@literal null}.
+	 * @param operations must not be {@literal null}.
+	 * @param rowMapperFactory must not be {@literal null}.
+	 * @param converter must not be {@literal null}.
+	 * @param delegate must not be {@literal null}.
+	 * @since 4.2
+	 */
+	public StringBasedJdbcQuery(QueryProvider queryProvider, JdbcQueryMethod queryMethod,
+			NamedParameterJdbcOperations operations, RowMapperFactory rowMapperFactory, JdbcConverter converter,
+			ValueExpressionDelegate delegate) {
+		this(null, queryProvider, queryMethod, operations, rowMapperFactory, converter, delegate);
+	}
+
 	@Override
 	public @Nullable Object execute(Object[] objects) {
 
@@ -180,14 +233,30 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 		JdbcQueryExecution<?> queryExecution = createJdbcQueryExecution(accessor, processor);
 		MapSqlParameterSource parameterMap = this.bindParameters(accessor);
 
-		return queryExecution.execute(evaluateExpressions(objects, accessor.getBindableParameters(), parameterMap),
-				parameterMap);
+		String sql = this.queryProvider != null ? getProvidedQuery(this.queryProvider, parameterMap)
+				: evaluateExpressions(objects, accessor.getBindableParameters(), parameterMap);
+
+		return queryExecution.execute(sql, parameterMap);
+	}
+
+	private String getProvidedQuery(QueryProvider queryProvider, SqlParameterSource parameterSource) {
+
+		String providedQuery = queryProvider.getQuery(parameterSource);
+
+		if (!StringUtils.hasText(providedQuery)) {
+			throw new IllegalStateException(String.format("QueryProvider %s returned a null or empty query for method %s",
+					queryProvider.getClass().getName(), getQueryMethod()));
+		}
+
+		return providedQuery;
 	}
 
 	private String evaluateExpressions(Object[] objects, Parameters<?, ?> bindableParameters,
 			MapSqlParameterSource parameterMap) {
 
-		if (parsedQuery.hasParameterBindings()) {
+		ValueExpressionQueryRewriter.ParsedQuery parsedQuery = this.parsedQuery;
+
+		if (parsedQuery != null && parsedQuery.hasParameterBindings()) {
 
 			ValueEvaluationContext evaluationContext = delegate.createValueContextProvider(bindableParameters)
 					.getEvaluationContext(objects);
@@ -198,6 +267,8 @@ public class StringBasedJdbcQuery extends AbstractJdbcQuery {
 
 			return parsedQuery.getQueryString();
 		}
+
+		Assert.state(this.query != null, "Query must not be null");
 
 		return this.query;
 	}

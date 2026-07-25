@@ -46,6 +46,7 @@ import org.springframework.jdbc.core.RowMapper;
  * @author Moises Cisneros
  * @author Hebert Coelho
  * @author Mikhail Polivakha
+ * @author Sanghyuk Jung
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
@@ -86,4 +87,13 @@ public @interface Query {
 	 * @since 2.1
 	 */
 	String resultSetExtractorRef() default "";
+
+	/**
+	 * Optional {@link QueryProvider} to generate the SQL statement to execute at runtime, based on the bound parameter
+	 * values. The configured class must expose a default constructor. This attribute is mutually exclusive with
+	 * {@link #value()} and {@link #name()}.
+	 *
+	 * @since 4.2
+	 */
+	Class<? extends QueryProvider> queryProviderClass() default QueryProvider.class;
 }

@@ -52,6 +52,7 @@ import org.springframework.util.StringUtils;
  * JDBC-specific {@link RepositoryContributor} contributing an AOT repository fragment.
  *
  * @author Mark Paluch
+ * @author Sanghyuk Jung
  * @since 4.0
  */
 public class JdbcRepositoryContributor extends RepositoryContributor {
@@ -113,6 +114,11 @@ public class JdbcRepositoryContributor extends RepositoryContributor {
 
 		JdbcQueryMethod queryMethod = new JdbcQueryMethod(method, getRepositoryInformation(), getProjectionFactory(),
 				queriesFactory.getNamedQueries(), mappingContext);
+
+		// SQL obtained from a QueryProvider is only available at runtime, hence no AOT contribution.
+		if (queryMethod.hasQueryProvider()) {
+			return null;
+		}
 
 		ReturnedType returnedType = queryMethod.getResultProcessor().getReturnedType();
 		MergedAnnotation<Query> query = MergedAnnotations.from(method).get(Query.class);
